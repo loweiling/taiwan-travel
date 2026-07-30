@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台灣完整版旅遊計畫｜中華電信會館 x 必玩景點 x 必吃美食 x 節慶</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg:#faf6ee;
+    --panel:#ffffff;
+    --ink:#2b2420;
+    --sub:#6b5f52;
+    --line:#e7ddcd;
+    --teal:#1f6f6f;
+    --teal-dark:#134f4f;
+    --gold:#c9942f;
+    --red:#b8402f;
+    --orange:#d97b1f;
+    --green:#3d7a4d;
+    --blue:#2e6fd1;
+    --grey:#8a8072;
+    --card:#fffdf9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6;
+  }
+  header{
+    background:linear-gradient(135deg,var(--teal-dark),var(--teal));
+    color:#fff; padding:28px 20px 22px;
+  }
+  header h1{margin:0 0 6px; font-size:1.55rem;}
+  header p{margin:0; color:#dff0ea; font-size:0.92rem;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 16px;}
+  .today-bar{
+    background:#fff3d6; border-bottom:1px solid #eadba0; padding:8px 16px; text-align:center;
+    font-size:0.85rem; color:#5a4a1e;
+  }
+  #mapWrap{position:relative; margin:20px 0;}
+  #map{height:520px; width:100%; border-radius:10px; border:1px solid var(--line);}
+  #clearBtn{
+    position:absolute; top:10px; right:10px; z-index:500; background:#fff; border:1px solid var(--line);
+    border-radius:8px; padding:7px 12px; font-size:0.8rem; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.15);
+  }
+  #mapHint{position:absolute; bottom:10px; left:10px; z-index:500; background:rgba(255,255,255,.92); border-radius:8px;
+    padding:6px 10px; font-size:0.78rem; color:var(--sub); box-shadow:0 1px 4px rgba(0,0,0,.12);}
+  .legend{display:flex; flex-wrap:wrap; gap:10px 18px; font-size:0.82rem; color:var(--sub); margin-bottom:10px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .legend .ico{width:20px; height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:#fff;}
+  .region-legend{display:flex; flex-wrap:wrap; gap:10px 18px; font-size:0.8rem; color:var(--sub); margin-bottom:18px;}
+  .region-legend .dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
+  .tabs{display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 10px; position:sticky; top:0; background:var(--bg); padding:10px 0; z-index:50;}
+  .tab-btn{
+    border:1px solid var(--line); background:var(--panel); color:var(--sub); padding:8px 14px;
+    border-radius:999px; font-size:0.85rem; cursor:pointer; transition:.15s;
+  }
+  .tab-btn.active{background:var(--teal); color:#fff; border-color:var(--teal);}
+  .region-panel{display:none; margin-bottom:26px;}
+  .region-panel.active{display:block;}
+  .region-head{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 22px; margin-bottom:16px;}
+  .region-head h2{margin:0 0 4px; font-size:1.25rem; color:var(--teal-dark);}
+  .region-head .desc{color:var(--sub); font-size:0.9rem; margin:0;}
+
+  .stop{border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-bottom:18px; background:var(--card); position:relative;}
+  .stop-head{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:6px;}
+  .stop-head h3{margin:0; font-size:1.15rem; cursor:pointer;}
+  .stop-head h3 .badge-global{font-size:0.7rem; background:var(--gold); color:#fff; padding:2px 8px; border-radius:999px; margin-left:8px; vertical-align:middle;}
+  .stop-head .map-link{font-size:0.78rem; color:var(--teal); cursor:pointer; text-decoration:underline;}
+  .meta-line{font-size:0.83rem; color:var(--sub); margin-bottom:6px;}
+  .meta-line a{color:var(--teal); text-decoration:none;}
+  .price-line{font-size:0.9rem; margin-bottom:12px; display:flex; flex-wrap:wrap; gap:8px 18px;}
+  .price-line b{color:var(--teal-dark);}
+  .price-chip{background:#eef6f3; border-radius:8px; padding:4px 10px; font-size:0.85rem;}
+  .price-chip.holiday{background:#fdeee0; }
+
+  /* ---- Festival banner: made very prominent ---- */
+  .fest-banner{border-radius:10px; padding:12px 16px; margin-bottom:12px; font-size:1rem; border:2px solid var(--gold); background:linear-gradient(135deg,#fff6e0,#fdeec2);}
+  .fest-banner .fest-title{font-weight:700; font-size:1.02rem; color:#8a5e00; display:flex; align-items:center; gap:8px; margin-bottom:4px;}
+  .fest-banner .fest-item{font-size:0.92rem; color:#6b4c00; padding:3px 0;}
+  .fest-banner.hit{
+    border:3px solid var(--red); background:linear-gradient(135deg,#fff0ec,#ffd9cf);
+    box-shadow:0 0 0 4px rgba(184,64,47,0.12);
+  }
+  .fest-banner.hit .fest-title{color:var(--red); font-size:1.08rem;}
+  .fest-banner.hit .fest-item{color:#7a2418; font-weight:600;}
+  .fest-banner .fest-item.matched::before{content:"🎯 ";}
+
+  .date-row{display:flex; flex-wrap:wrap; align-items:center; gap:10px; background:#f3efe4; border-radius:10px; padding:10px 14px; margin-bottom:12px;}
+  .date-row label{font-size:0.85rem; color:var(--sub);}
+  .date-row input[type=date], .date-row input[type=number]{padding:6px 10px; border:1px solid var(--line); border-radius:6px; font-size:0.9rem;}
+  .date-row input[type=number]{width:60px;}
+
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:8px;}
+  @media (max-width:720px){.cols{grid-template-columns:1fr;}}
+  .col-block h4{margin:0 0 4px; font-size:0.82rem; color:var(--sub); text-transform:uppercase; letter-spacing:.03em;}
+  .col-block ul{margin:0; padding-left:18px; font-size:0.9rem;}
+  .col-block ul li{margin-bottom:2px;}
+  .col-block ul li.tier-global{color:var(--blue); font-weight:600;}
+  .col-block ul li.tier-bucket{color:#a8781f; font-weight:600;}
+
+  .booking-box{margin-top:12px; padding:10px 12px; border-radius:8px; font-size:0.86rem; display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center;}
+  .booking-box b{font-size:0.9rem;}
+  .st-ok{background:#eafaf0; color:#20502e;}
+  .st-soon{background:#fff2df; color:#7a4a08;}
+  .st-urgent{background:#fde8e4; color:#7a2418;}
+  .st-over{background:#f4d9d3; color:#6e1f13;}
+  .st-none{background:#f0ede4; color:var(--sub);}
+
+  table.contact{width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:10px;}
+  table.contact th, table.contact td{border:1px solid var(--line); padding:6px 8px; text-align:left;}
+  table.contact th{background:#f3efe4;}
+  .ref-section{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin-bottom:26px;}
+  .ref-section h2{margin-top:0; color:var(--teal-dark); font-size:1.2rem;}
+  .fest-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px;}
+  .fest-card{border:1px solid var(--gold); border-radius:10px; padding:12px 14px; background:#fffaf0;}
+  .fest-card h4{margin:0 0 4px; font-size:0.98rem; color:#8a5e00;}
+  .fest-card p{margin:0; font-size:0.83rem; color:var(--sub);}
+  footer{text-align:center; color:var(--grey); font-size:0.8rem; padding:20px; }
+  .note-box{background:#fef4e8; border:1px solid #f0d9ad; border-radius:10px; padding:14px 16px; font-size:0.87rem; margin-bottom:20px; color:#5a4a1e;}
+
+  .leaflet-popup-content{font-size:0.85rem; line-height:1.5;}
+  .poi-popup-title{font-weight:700;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>🇹🇼 台灣完整版旅遊計畫｜中華電信會館全台巡禮</h1>
+    <p>28 座中華電信會館 × 必玩景點 × 震撼全球級景點 × 在地必吃美食 × 當地節慶時序 × 訂房倒數提醒（提前40天預訂制）</p>
+  </div>
+</header>
+<div class="today-bar" id="todayBar"></div>
+
+<div class="wrap">
+
+  <div class="note-box">
+    📌 <b>使用說明</b>：每一座會館都是<b>獨立的一段旅行</b>（不會安排「一天住A會館、隔天住B會館」的跑點行程）。
+    每張卡片可自行設定「入住日」與「住宿晚數」，系統會自動算出退房日，並回推 <b>39 天</b>作為「建議訂房日」。
+    當地重大節慶會以<b>黃色／紅色醒目框</b>標示；若入住期間剛好碰上節慶，框線會變成紅色並提示「🎯 你的行程將遇到」。
+    <b>點擊地圖上的🏨會館圖釘</b>，會自動顯示該會館周邊的必玩景點與必吃美食圖釘（不同類型用不同圖示標示）。
+  </div>
+
+  <div id="mapWrap">
+    <div id="map"></div>
+    <button id="clearBtn" onclick="clearNearby()">✕ 清除周邊標記</button>
+    <div id="mapHint">👉 點擊🏨會館圖釘查看周邊景點與美食</div>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="region-legend" id="regionLegend"></div>
+
+  <div class="tabs" id="tabs"></div>
+  <div id="regions"></div>
+
+  <div class="ref-section">
+    <h2>🎉 全台重大節慶時序參考（不論是否設定日期都可參考）</h2>
+    <div class="fest-grid" id="festRef"></div>
+  </div>
+
+  <div class="ref-section">
+    <h2>☎️ 會館聯絡資訊與房價速查表</h2>
+    <table class="contact">
+      <thead><tr><th>會館</th><th>地址</th><th>主要聯絡電話</th><th>平日房價(NT$)</th><th>假日房價(NT$)</th></tr></thead>
+      <tbody id="contactBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>此網頁為個人旅遊規劃參考工具，房價、節慶日期以會館及主辦單位最新公告為準；景點/美食座標為概略位置僅供地圖參考。</footer>
+
+<script>
+// ---------- DATA ----------
+const REGIONS = {
+  A: {name:"北北基桃", color:"#1f6f6f", desc:"陽明山、淡水、金山、板橋、中壢 — 都會近郊溫泉花季路線，皆可獨立安排一段小旅行。"},
+  B: {name:"宜蘭東北角", color:"#2e7dd1", desc:"礁溪、蘇澳、太平山 — 溫泉與森林秘境，各自成行。"},
+  C: {name:"花東縱谷海岸", color:"#d97b1f", desc:"花蓮美崙、松園、台東、普悠瑪、綠島 — 太魯閣、縱谷、離島溫泉，各段皆可獨立成行。"},
+  D: {name:"南台灣恆春半島＋雙城", color:"#b8402f", desc:"安平古堡、西子灣、澄清湖、恆春、墾丁、小琉球 — 古都、海港、國境之南。"},
+  E: {name:"中台灣山線茶鄉", color:"#3d7a4d", desc:"阿里山、溪頭、鹿谷、日月潭、南庄、台中黎明 — 森林鐵道與高山茶香。"},
+  F: {name:"澎湖離島", color:"#8a4fd1", desc:"獨立搭機／船前往，海上花火與跨海大橋。"},
+  G: {name:"金門離島", color:"#8a4fd1", desc:"獨立搭機前往，戰地史蹟與高粱酒鄉。"},
+  H: {name:"馬祖離島", color:"#8a4fd1", desc:"獨立搭機前往，藍眼淚與戰地坑道。"}
+};
+
+// marker categories for POIs
+const CAT = {
+  lodge:      {emoji:"🏨", color:"#134f4f", label:"中華電信會館"},
+  attraction: {emoji:"🏞️", color:"#3d7a4d", label:"必玩景點"},
+  food:       {emoji:"🍜", color:"#d97b1f", label:"必吃美食"},
+  global:     {emoji:"🌏", color:"#2e6fd1", label:"國際知名景點"},
+  bucket:     {emoji:"⭐", color:"#c9942f", label:"人生必去景點"},
+  festival:   {emoji:"🎉", color:"#c9308f", label:"節慶活動"}
+};
+
+// festivals: months are 1-12; lat/lng = approx event location for map marker
+const FEST = {
+  yangmingshan: [{name:"陽明山花季", months:[2,3,4], note:"櫻花、海芋齊放（海芋季4–5月延續至竹子湖）", lat:25.1730, lng:121.5537}],
+  danshui: [{name:"無極天元宮吉野櫻", months:[3], note:"3月賞櫻熱門", lat:25.2020, lng:121.4630},
+            {name:"平溪天燈節", months:[2,3], note:"2026/2/27（平溪國中場）、2026/3/3（十分廣場場，元宵節），順遊新北平溪", lat:25.0410, lng:121.7770}],
+  jinshan: [{name:"野柳海洋文化祭", months:[7,8], note:"暑假期間不定期舉辦", lat:25.2058, lng:121.6896}],
+  banqiao: [],
+  zhongli: [],
+  jiaoxi: [{name:"宜蘭國際童玩藝術節", months:[7,8], note:"冬山河親水公園", lat:24.6737, lng:121.8130}],
+  suao: [],
+  taipingshan: [{name:"太平山賞楓／螢火蟲季", months:[4,5,11,12], note:"4–5月賞螢，11–12月楓紅", lat:24.4990, lng:121.5270}],
+  hualien1: [{name:"花蓮國際石雕藝術季", months:[6,7,8,9], note:"松園別館、石雕博物館周邊", lat:23.9840, lng:121.6113},
+            {name:"太魯閣峽谷馬拉松", months:[11], note:"11月登場，太魯閣國家公園", lat:24.1730, lng:121.5195}],
+  songyuan: [{name:"花蓮國際石雕藝術季", months:[6,7,8,9], note:"松園別館周邊展出", lat:23.9840, lng:121.6113}],
+  taitung1: [{name:"台灣國際熱氣球嘉年華", months:[6,7,8], note:"鹿野高台，暑假登場", lat:22.9455, lng:121.1443},
+            {name:"東海岸大地藝術節", months:[7,8], note:"都蘭、東河沿線裝置藝術", lat:23.0350, lng:121.3450}],
+  puyuma: [{name:"台灣國際熱氣球嘉年華", months:[6,7,8], note:"鹿野高台鄰近台東市區", lat:22.9455, lng:121.1443}],
+  ludao: [{name:"綠島飛魚季", months:[3,4,5,6], note:"春夏之交海鮮最肥美", lat:22.6600, lng:121.4900}],
+  anping: [{name:"台南鹽水蜂炮", months:[2,3], note:"元宵節前後", lat:23.3210, lng:120.2720},
+           {name:"白河蓮花季", months:[6,7], note:"鄰近台南市區", lat:23.3520, lng:120.4140}],
+  xiziwan: [{name:"高雄燈會", months:[2], note:"農曆春節期間登場", lat:22.6203, lng:120.2920}],
+  chengqinghu: [{name:"高雄燈會", months:[2], note:"農曆春節期間登場", lat:22.6543, lng:120.3401}],
+  hengchun: [{name:"恆春思想起民謠節／半島歌謠祭", months:[10,11,12], note:"落山風藝術季10月至隔年3月", lat:22.0011, lng:120.7443}],
+  kenting: [{name:"台灣祭（墾丁春吶）", months:[4], note:"2026/4/3–4/5 大灣遊憩區", lat:21.9540, lng:120.7860},
+            {name:"東港迎王平安祭典", months:[9,10], note:"三年一科（丑辰未戌年），下一科為2027年", lat:22.4660, lng:120.4490}],
+  xiaoliuqiu: [],
+  alishan: [{name:"阿里山花季（櫻花）", months:[3,4], note:"3月吉野櫻、4月山櫻花齊放", lat:23.5090, lng:120.8025}],
+  xitou: [{name:"溪頭紅葉季", months:[11,12], note:"銀杏、楓香轉紅", lat:23.6712, lng:120.7935}],
+  luguu: [],
+  sunmoonlake: [{name:"日月潭花火音樂嘉年華", months:[9,10,11], note:"2026/9/12–11/15：伊達邵音樂會9/12、萬人泳渡9/20、花火音樂會10/17、紅茶文化季10/17–18、環湖馬拉松11/1、青年交響樂團花火11/14", lat:23.8600, lng:120.9130}],
+  nanzhuang: [{name:"客家桐花祭", months:[4,5], note:"四月雪盛開", lat:24.5940, lng:121.0000},
+              {name:"賽夏族矮靈祭", months:[10,11], note:"每2年一科（西曆偶數年），向天湖舉行", lat:24.5210, lng:121.0430}],
+  liming: [],
+  penghu: [{name:"澎湖國際海上花火節", months:[5,6,7,8], note:"2026/5/4–8/25 觀音亭", lat:23.5680, lng:119.5620}],
+  jinmen: [{name:"金門風獅爺文化季", months:[9,10], note:"秋季不定期舉行", lat:24.4290, lng:118.3210}],
+  matsu: [{name:"馬祖藍眼淚季", months:[4,5,6], note:"4–6月夜晚海岸最佳觀賞期，馬祖列島皆可見", lat:26.1890, lng:119.9280}]
+};
+
+// attractions/food each = {n:name, lat, lng, tier} — tier only meaningful for attractions ('attraction'|'global'|'bucket')
+const LODGES = [
+  {id:"yangmingshan", region:"A", name:"陽明山會館", lat:25.144878, lng:121.564781, addr:"台北市士林區陽明山菁山路127之1號", phone:"02-28620070", priceWD:"900–2800", priceHD:"1200–3200", nights:1, global:true,
+   attractions:[
+     {n:"陽明山國家公園（小油坑、擎天崗、七星山）", lat:25.1637, lng:121.5453, tier:"attraction"},
+     {n:"竹子湖海芋田", lat:25.1730, lng:121.5537, tier:"attraction"},
+     {n:"故宮博物院（世界四大博物館之一）", lat:25.1024, lng:121.5486, tier:"global"},
+     {n:"台北101（曾為世界第一高樓）", lat:25.0330, lng:121.5654, tier:"global"}],
+   food:[
+     {n:"士林夜市小吃", lat:25.0879, lng:121.5249},
+     {n:"擎天崗牧場鮮奶製品", lat:25.1637, lng:121.5453},
+     {n:"溫泉拉麵", lat:25.1449, lng:121.5648}]},
+  {id:"danshui", region:"A", name:"淡水會館", lat:25.1716, lng:121.4377, addr:"新北市淡水區中正路201號3F", phone:"02-8621-7300", priceWD:"1000–1900", priceHD:"1400–2300", nights:1, global:false,
+   attractions:[
+     {n:"淡水老街／金色水岸", lat:25.1700, lng:121.4407, tier:"attraction"},
+     {n:"漁人碼頭情人橋", lat:25.1826, lng:121.4103, tier:"attraction"},
+     {n:"紅毛城", lat:25.1751, lng:121.4331, tier:"attraction"},
+     {n:"八里渡船頭", lat:25.1449, lng:121.3986, tier:"attraction"}],
+   food:[
+     {n:"淡水阿給", lat:25.1700, lng:121.4407},
+     {n:"鐵蛋", lat:25.1698, lng:121.4400},
+     {n:"可口魚酥", lat:25.1705, lng:121.4415},
+     {n:"可樂旗魚黑輪", lat:25.1826, lng:121.4103}]},
+  {id:"jinshan", region:"A", name:"金山會館", lat:25.220313, lng:121.640168, addr:"新北市金山區金包里街1號", phone:"0928-977165", priceWD:"1000–2000", priceHD:"1200–2200", nights:1, global:true,
+   attractions:[
+     {n:"野柳地質公園（女王頭）", lat:25.2058, lng:121.6896, tier:"global"},
+     {n:"朱銘美術館", lat:25.2295, lng:121.6379, tier:"attraction"},
+     {n:"燭台雙嶼", lat:25.2270, lng:121.6900, tier:"attraction"},
+     {n:"金山老街", lat:25.2219, lng:121.6368, tier:"attraction"},
+     {n:"九份老街（國際知名山城，神隱少女氛圍）", lat:25.1090, lng:121.8450, tier:"global"},
+     {n:"十分瀑布（台版尼加拉）", lat:25.0490, lng:121.7850, tier:"attraction"}],
+   food:[
+     {n:"金山鴨肉", lat:25.2219, lng:121.6368},
+     {n:"地瓜料理", lat:25.2222, lng:121.6372},
+     {n:"客家菜包", lat:25.2215, lng:121.6364}]},
+  {id:"banqiao", region:"A", name:"板橋會館", lat:25.007906, lng:121.467060, addr:"新北市板橋區民族路168號", phone:"02-2963-9575", priceWD:"1200–3000", priceHD:"1300–3200", nights:1, global:false,
+   attractions:[
+     {n:"林家花園", lat:25.0134, lng:121.4526, tier:"attraction"},
+     {n:"大稻埕迪化街", lat:25.0553, lng:121.5100, tier:"attraction"},
+     {n:"華山1914文創園區", lat:25.0447, lng:121.5296, tier:"attraction"}],
+   food:[
+     {n:"湳雅夜市", lat:25.0100, lng:121.4620},
+     {n:"南雅夜市小吃", lat:25.0080, lng:121.4600}]},
+  {id:"zhongli", region:"A", name:"中壢會館", lat:24.956015, lng:121.167426, addr:"桃園市楊梅區電研路99號", phone:"03-4244660", priceWD:"1200–1600", priceHD:"1500–1900", nights:1, global:false,
+   attractions:[
+     {n:"拉拉山風景區", lat:24.7160, lng:121.4230, tier:"attraction"},
+     {n:"大溪老街／大溪橋", lat:24.8825, lng:121.2880, tier:"attraction"},
+     {n:"慈湖紀念雕塑公園", lat:24.8296, lng:121.3067, tier:"attraction"}],
+   food:[
+     {n:"大溪豆干", lat:24.8825, lng:121.2880},
+     {n:"拉拉山水蜜桃（6–8月）", lat:24.7160, lng:121.4230},
+     {n:"大溪花生糖", lat:24.8820, lng:121.2875}]},
+
+  {id:"jiaoxi", region:"B", name:"礁溪會館", lat:24.822951, lng:121.771034, addr:"宜蘭縣礁溪鄉中山路一段241巷20號", phone:"03-9870688", priceWD:"1700–2400", priceHD:"2000–2600", nights:1, global:false,
+   attractions:[
+     {n:"礁溪溫泉公園", lat:24.8271, lng:121.7726, tier:"attraction"},
+     {n:"五峰旗瀑布", lat:24.8590, lng:121.7810, tier:"attraction"},
+     {n:"龍潭湖環湖步道", lat:24.7648, lng:121.7936, tier:"attraction"}],
+   food:[
+     {n:"礁溪溫泉魚", lat:24.8271, lng:121.7726},
+     {n:"蔥餅", lat:24.8268, lng:121.7730},
+     {n:"三星蔥料理", lat:24.6710, lng:121.6660},
+     {n:"糕渣", lat:24.8271, lng:121.7726}]},
+  {id:"suao", region:"B", name:"蘇澳會館", lat:24.596027, lng:121.845782, addr:"宜蘭縣蘇澳鎮中山路1段220號", phone:"03-9371089", priceWD:"1400–2100", priceHD:"1700–2500", nights:1, global:false,
+   attractions:[
+     {n:"蘇澳冷泉", lat:24.5945, lng:121.8483, tier:"attraction"},
+     {n:"南方澳漁港／內埤海灘", lat:24.5928, lng:121.8624, tier:"attraction"},
+     {n:"蘇花公路起點", lat:24.5960, lng:121.8550, tier:"attraction"}],
+   food:[
+     {n:"蘇澳羊肉", lat:24.5945, lng:121.8483},
+     {n:"南方澳現撈魚丸", lat:24.5928, lng:121.8624},
+     {n:"鯖魚料理", lat:24.5930, lng:121.8620}]},
+  {id:"taipingshan", region:"B", name:"太平山會館", lat:24.499, lng:121.527, addr:"宜蘭縣大同鄉太平山（森林遊樂區內）", phone:"洽會館經理", priceWD:"1500–2300", priceHD:"2000–3000", nights:2, global:false,
+   attractions:[
+     {n:"太平山國家森林遊樂區", lat:24.4990, lng:121.5270, tier:"attraction"},
+     {n:"翠峰湖環山步道", lat:24.5263, lng:121.4956, tier:"attraction"},
+     {n:"鳩之澤溫泉", lat:24.5719, lng:121.5461, tier:"attraction"},
+     {n:"見晴懷古步道", lat:24.5183, lng:121.5210, tier:"attraction"}],
+   food:[
+     {n:"段木香菇料理", lat:24.4990, lng:121.5270},
+     {n:"高山蔬菜", lat:24.4992, lng:121.5272},
+     {n:"放山土雞", lat:24.4988, lng:121.5268}]},
+
+  {id:"hualien1", region:"C", name:"花蓮美崙會館", lat:23.9905, lng:121.6305, addr:"花蓮市順興路1號", phone:"03-8221369#9", priceWD:"1400–2300", priceHD:"2000–3000", nights:2, global:true,
+   attractions:[
+     {n:"太魯閣國家公園（0403震後多數步道封閉中，出發前務必查官方公告）", lat:24.1730, lng:121.5195, tier:"global"},
+     {n:"清水斷崖（蘇花公路可達，不受園區封閉影響）", lat:24.2110, lng:121.6800, tier:"bucket"},
+     {n:"七星潭", lat:24.0177, lng:121.6398, tier:"attraction"},
+     {n:"東大門夜市", lat:23.9910, lng:121.6110, tier:"attraction"}],
+   food:[
+     {n:"花蓮扁食", lat:23.9910, lng:121.6110},
+     {n:"公正包子", lat:23.9750, lng:121.6050},
+     {n:"液香扁食", lat:23.9770, lng:121.6070},
+     {n:"剝皮辣椒炒山豬肉", lat:23.9910, lng:121.6110}]},
+  {id:"songyuan", region:"C", name:"松園會館", lat:23.983303, lng:121.615265, addr:"花蓮市松園街80號", phone:"03-8315001", priceWD:"1200–2800", priceHD:"1600–3200", nights:1, global:false,
+   attractions:[
+     {n:"松園別館夕陽", lat:23.9840, lng:121.6113, tier:"attraction"},
+     {n:"慶修院", lat:23.9622, lng:121.5445, tier:"attraction"},
+     {n:"鯉魚潭環潭步道", lat:23.8814, lng:121.4419, tier:"attraction"}],
+   food:[
+     {n:"新城佳興冰果室檸檬汁", lat:24.0130, lng:121.6280},
+     {n:"炸彈蔥油餅", lat:23.9840, lng:121.6113}]},
+  {id:"taitung1", region:"C", name:"台東會館", lat:22.753138, lng:121.153500, addr:"台東縣台東市大同路128號", phone:"089-311-416", priceWD:"1600–1800", priceHD:"2000–2200", nights:2, global:true,
+   attractions:[
+     {n:"三仙台", lat:23.1215, lng:121.4104, tier:"bucket"},
+     {n:"伯朗大道", lat:23.0930, lng:121.2360, tier:"attraction"},
+     {n:"鹿野高台熱氣球場地", lat:22.9455, lng:121.1443, tier:"attraction"},
+     {n:"多良車站", lat:22.6280, lng:121.0490, tier:"attraction"}],
+   food:[
+     {n:"池上便當", lat:23.0930, lng:121.2360},
+     {n:"關山米苔目", lat:23.0400, lng:121.1900},
+     {n:"卑南豬血湯", lat:22.7688, lng:121.1385},
+     {n:"釋迦", lat:22.7590, lng:121.1500}]},
+  {id:"puyuma", region:"C", name:"普悠瑪會館", lat:22.795643, lng:121.124588, addr:"台東市新站路100號", phone:"089-231401", priceWD:"1000–3000", priceHD:"1400–3800", nights:1, global:false,
+   attractions:[
+     {n:"台東森林公園（琵琶湖）", lat:22.7688, lng:121.1385, tier:"attraction"},
+     {n:"鐵花村音樂聚落", lat:22.7590, lng:121.1500, tier:"attraction"},
+     {n:"小野柳", lat:22.8230, lng:121.2074, tier:"attraction"}],
+   food:[
+     {n:"台東海鮮熱炒", lat:22.7595, lng:121.1500},
+     {n:"米苔目冰", lat:22.7595, lng:121.1500}]},
+  {id:"ludao", region:"C", name:"綠島會館", lat:22.668511, lng:121.468792, addr:"台東縣綠島鄉南寮村184號", phone:"0965-318-813", priceWD:"1000–2000", priceHD:"1000–2000", nights:2, global:true,
+   attractions:[
+     {n:"朝日溫泉（全球僅3座海底溫泉之一）", lat:22.6417, lng:121.4980, tier:"bucket"},
+     {n:"綠島燈塔", lat:22.6819, lng:121.4975, tier:"attraction"},
+     {n:"浮潛看海龜", lat:22.6600, lng:121.4900, tier:"attraction"}],
+   food:[
+     {n:"綠島海鮮", lat:22.6620, lng:121.4900},
+     {n:"放山羊料理", lat:22.6615, lng:121.4895}]},
+
+  {id:"anping", region:"D", name:"安平古堡會館", lat:22.999000, lng:120.154310, addr:"台南市安平區安平路986號", phone:"06-3916101", priceWD:"1200–3000", priceHD:"1400–3600", nights:2, global:false,
+   attractions:[
+     {n:"安平古堡", lat:23.0002, lng:120.1600, tier:"attraction"},
+     {n:"安平樹屋", lat:22.9985, lng:120.1618, tier:"attraction"},
+     {n:"赤崁樓", lat:22.9971, lng:120.2027, tier:"attraction"},
+     {n:"林百貨", lat:22.9925, lng:120.2033, tier:"attraction"},
+     {n:"台南孔廟", lat:22.9908, lng:120.2014, tier:"attraction"}],
+   food:[
+     {n:"台南牛肉湯", lat:22.9930, lng:120.2050},
+     {n:"虱目魚粥", lat:22.9930, lng:120.2050},
+     {n:"擔仔麵", lat:22.9930, lng:120.2020},
+     {n:"棺材板", lat:23.0002, lng:120.1600},
+     {n:"鱔魚意麵", lat:22.9930, lng:120.2050}]},
+  {id:"xiziwan", region:"D", name:"西子灣會館", lat:22.621822, lng:120.273656, addr:"高雄市鼓山區臨海二路17之1號", phone:"07-5314678", priceWD:"1300–3000", priceHD:"1800–3500", nights:1, global:false,
+   attractions:[
+     {n:"西子灣夕陽", lat:22.6280, lng:120.2660, tier:"attraction"},
+     {n:"旗津老街／旗後燈塔", lat:22.6120, lng:120.2680, tier:"attraction"},
+     {n:"駁二藝術特區", lat:22.6203, lng:120.2823, tier:"attraction"},
+     {n:"打狗英國領事館", lat:22.6215, lng:120.2668, tier:"attraction"}],
+   food:[
+     {n:"鹽埕溫州大餛飩", lat:22.6280, lng:120.2870},
+     {n:"旗津海鮮", lat:22.6120, lng:120.2680},
+     {n:"高雄木瓜牛奶", lat:22.6280, lng:120.2870}]},
+  {id:"chengqinghu", region:"D", name:"澄清湖會館", lat:22.672194, lng:120.348959, addr:"高雄市仁武區赤山里仁勇路400號", phone:"07-3444343", priceWD:"1000–3600", priceHD:"1000–3600", nights:1, global:true,
+   attractions:[
+     {n:"澄清湖風景區", lat:22.6543, lng:120.3401, tier:"attraction"},
+     {n:"佛光山佛陀紀念館（世界最高青銅坐佛）", lat:22.7423, lng:120.4562, tier:"global"},
+     {n:"義大世界", lat:22.7180, lng:120.3910, tier:"attraction"}],
+   food:[
+     {n:"高雄在地熱炒", lat:22.6543, lng:120.3401},
+     {n:"鳳山在來米粉", lat:22.6280, lng:120.3600}]},
+  {id:"hengchun", region:"D", name:"恆春會館", lat:21.9983, lng:120.7439, addr:"屏東縣恆春鎮恆公路78號", phone:"08-8445700", priceWD:"750–1800", priceHD:"1200–2300", nights:1, global:false,
+   attractions:[
+     {n:"恆春古城（東西南北四城門）", lat:22.0011, lng:120.7443, tier:"attraction"},
+     {n:"國境之南地標", lat:21.9020, lng:120.8540, tier:"attraction"},
+     {n:"後壁湖漁港", lat:21.9490, lng:120.7930, tier:"attraction"}],
+   food:[
+     {n:"恆春綠豆蒜", lat:22.0011, lng:120.7443},
+     {n:"洋蔥料理", lat:22.0011, lng:120.7443},
+     {n:"恆春薑黃", lat:22.0011, lng:120.7443}]},
+  {id:"kenting", region:"D", name:"墾丁會館", lat:21.94348, lng:120.79925, addr:"屏東縣恆春鎮墾丁路文化巷2之1號", phone:"08-8445688", priceWD:"900–1300", priceHD:"1700–2400", nights:2, global:true,
+   attractions:[
+     {n:"墾丁國家公園", lat:21.9440, lng:120.7960, tier:"attraction"},
+     {n:"龍磐公園", lat:21.9280, lng:120.8460, tier:"attraction"},
+     {n:"鵝鑾鼻燈塔", lat:21.9018, lng:120.8540, tier:"bucket"},
+     {n:"南灣海灘", lat:21.9540, lng:120.7860, tier:"attraction"}],
+   food:[
+     {n:"洋蔥牛肉", lat:21.9440, lng:120.7960},
+     {n:"南灣海鮮熱炒", lat:21.9540, lng:120.7860},
+     {n:"綠豆蒜", lat:21.9440, lng:120.7960}]},
+  {id:"xiaoliuqiu", region:"D", name:"小琉球中興會館", lat:22.339319, lng:120.368636, addr:"屏東縣琉球鄉上福村中興路39號", phone:"08-8614144", priceWD:"900–3000", priceHD:"1200–4200", nights:2, global:false,
+   attractions:[
+     {n:"花瓶岩", lat:22.3564, lng:120.3730, tier:"attraction"},
+     {n:"美人洞", lat:22.3550, lng:120.3620, tier:"attraction"},
+     {n:"浮潛看海龜（全年可見）", lat:22.3450, lng:120.3650, tier:"attraction"}],
+   food:[
+     {n:"小琉球海鮮", lat:22.3392, lng:120.3690},
+     {n:"麻花捲", lat:22.3392, lng:120.3690},
+     {n:"風螺", lat:22.3392, lng:120.3690}]},
+
+  {id:"alishan", region:"E", name:"阿里山會館", lat:23.509640, lng:120.812431, addr:"嘉義縣阿里山鄉中正村58號", phone:"05-3443424", priceWD:"1600–2600", priceHD:"2200–3400", nights:2, global:true,
+   attractions:[
+     {n:"阿里山日出、雲海、晚霞", lat:23.4640, lng:120.7990, tier:"global"},
+     {n:"阿里山森林小火車", lat:23.5090, lng:120.8025, tier:"attraction"},
+     {n:"神木群棧道", lat:23.5115, lng:120.8040, tier:"attraction"},
+     {n:"奮起湖老街", lat:23.5075, lng:120.6960, tier:"attraction"}],
+   food:[
+     {n:"奮起湖便當", lat:23.5075, lng:120.6960},
+     {n:"阿里山高山茶", lat:23.5090, lng:120.8025},
+     {n:"愛玉、山葵料理", lat:23.5090, lng:120.8025}]},
+  {id:"xitou", region:"E", name:"溪頭會館", lat:23.673570, lng:120.795286, addr:"南投縣鹿谷鄉興產路1-22號", phone:"049-2236852", priceWD:"1200–1800", priceHD:"1500–2200", nights:1, global:false,
+   attractions:[
+     {n:"溪頭自然教育園區", lat:23.6712, lng:120.7935, tier:"attraction"},
+     {n:"妖怪村", lat:23.6660, lng:120.7860, tier:"attraction"},
+     {n:"大學池", lat:23.6717, lng:120.7940, tier:"attraction"},
+     {n:"空中走廊", lat:23.6730, lng:120.7955, tier:"attraction"}],
+   food:[
+     {n:"孟宗筍料理", lat:23.6712, lng:120.7935},
+     {n:"香菇包", lat:23.6660, lng:120.7860},
+     {n:"段木香菇", lat:23.6712, lng:120.7935}]},
+  {id:"luguu", region:"E", name:"鹿谷會館", lat:23.748416, lng:120.752099, addr:"南投縣鹿谷鄉中正路2段164號", phone:"049-2232331", priceWD:"1000–1200", priceHD:"1200–1700", nights:1, global:false,
+   attractions:[
+     {n:"鳳凰谷鳥園生態園區", lat:23.7075, lng:120.7620, tier:"attraction"},
+     {n:"麒麟潭", lat:23.7460, lng:120.7440, tier:"attraction"},
+     {n:"鹿谷茶園步道", lat:23.7500, lng:120.7500, tier:"attraction"}],
+   food:[
+     {n:"凍頂烏龍茶", lat:23.7500, lng:120.7500},
+     {n:"綠竹筍", lat:23.7480, lng:120.7530}]},
+  {id:"sunmoonlake", region:"E", name:"日月潭會館", lat:23.849405, lng:120.932022, addr:"南投縣魚池鄉日月村水秀街57號", phone:"049-2236860", priceWD:"1600–2200", priceHD:"2000–2600", nights:2, global:true,
+   attractions:[
+     {n:"日月潭環湖自行車道（CNN票選全球十大最美單車道）", lat:23.8600, lng:120.9200, tier:"global"},
+     {n:"日月潭纜車", lat:23.8460, lng:120.9155, tier:"attraction"},
+     {n:"伊達邵老街", lat:23.8490, lng:120.9200, tier:"attraction"},
+     {n:"文武廟、向山遊客中心", lat:23.8666, lng:120.9130, tier:"attraction"}],
+   food:[
+     {n:"邵族風味餐", lat:23.8490, lng:120.9200},
+     {n:"總統魚", lat:23.8490, lng:120.9200},
+     {n:"日月潭紅茶", lat:23.8490, lng:120.9200},
+     {n:"茶葉蛋", lat:23.8490, lng:120.9200}]},
+  {id:"nanzhuang", region:"E", name:"南庄會館", lat:24.602453, lng:120.999635, addr:"苗栗縣南庄鄉中正路147-1號", phone:"037-558012", priceWD:"1100–2000", priceHD:"1300–2400", nights:1, global:false,
+   attractions:[
+     {n:"南庄老街／桂花巷", lat:24.5940, lng:121.0000, tier:"attraction"},
+     {n:"向天湖", lat:24.5210, lng:121.0430, tier:"attraction"},
+     {n:"蓬萊溪護魚步道", lat:24.6100, lng:121.0200, tier:"attraction"}],
+   food:[
+     {n:"客家桔醬料理", lat:24.5940, lng:121.0000},
+     {n:"南庄麻糬", lat:24.5940, lng:121.0000},
+     {n:"客家粢粑", lat:24.5940, lng:121.0000}]},
+  {id:"liming", region:"E", name:"黎明會館", lat:24.157476, lng:120.635613, addr:"台中市南屯區黎明路2段658號", phone:"04-2344-3509", priceWD:"1000–2500", priceHD:"1200–2700", nights:1, global:true,
+   attractions:[
+     {n:"彩虹眷村", lat:24.1215, lng:120.6210, tier:"attraction"},
+     {n:"台中國家歌劇院", lat:24.1633, lng:120.6395, tier:"attraction"},
+     {n:"審計新村", lat:24.1443, lng:120.6689, tier:"attraction"},
+     {n:"高美濕地（國際媒體評選世界級夕陽）", lat:24.3125, lng:120.5490, tier:"global"}],
+   food:[
+     {n:"台中大麵羹", lat:24.1470, lng:120.6730},
+     {n:"筒仔米糕", lat:24.1470, lng:120.6730},
+     {n:"太陽餅", lat:24.1470, lng:120.6730}]},
+
+  {id:"penghu", region:"F", name:"澎湖會館", lat:23.570161, lng:119.568158, addr:"澎湖縣馬公市信義路3號", phone:"06-9440588", priceWD:"1100–1900", priceHD:"1200–2000", nights:3, global:true,
+   attractions:[
+     {n:"澎湖跨海大橋", lat:23.5610, lng:119.5060, tier:"attraction"},
+     {n:"雙心石滬（七美）", lat:23.2010, lng:119.4290, tier:"bucket"},
+     {n:"吉貝嶼", lat:23.7010, lng:119.6520, tier:"attraction"},
+     {n:"觀音亭", lat:23.5680, lng:119.5620, tier:"attraction"}],
+   food:[
+     {n:"仙人掌冰", lat:23.5680, lng:119.5620},
+     {n:"花枝丸", lat:23.5680, lng:119.5620},
+     {n:"丁香魚", lat:23.5680, lng:119.5620},
+     {n:"小管麵線", lat:23.5680, lng:119.5620}]},
+  {id:"jinmen", region:"G", name:"金門會館", lat:24.438311, lng:118.318932, addr:"金門縣金城鎮民權路182號6樓", phone:"082-320044", priceWD:"1000–1600", priceHD:"1200–1800", nights:3, global:false,
+   attractions:[
+     {n:"翟山坑道", lat:24.4160, lng:118.3130, tier:"attraction"},
+     {n:"金門國家公園", lat:24.4390, lng:118.3980, tier:"attraction"},
+     {n:"莒光樓", lat:24.4290, lng:118.3210, tier:"attraction"},
+     {n:"建功嶼", lat:24.4450, lng:118.3050, tier:"attraction"}],
+   food:[
+     {n:"金門高粱", lat:24.4290, lng:118.3210},
+     {n:"廣東粥", lat:24.4290, lng:118.3210},
+     {n:"蚵嗲", lat:24.4290, lng:118.3210},
+     {n:"金門牛肉麵", lat:24.4290, lng:118.3210}]},
+  {id:"matsu", region:"H", name:"馬祖會館", lat:26.157351, lng:119.942018, addr:"連江縣南竿鄉福澳村142號", phone:"0836-26123", priceWD:"1400–1800", priceHD:"1600–2000", nights:3, global:true,
+   attractions:[
+     {n:"藍眼淚海岸（4–6月最佳）", lat:26.1890, lng:119.9280, tier:"bucket"},
+     {n:"芹壁村", lat:26.1890, lng:119.9980, tier:"attraction"},
+     {n:"北海坑道", lat:26.1520, lng:119.9280, tier:"attraction"},
+     {n:"東引燈塔", lat:26.3660, lng:120.4960, tier:"attraction"}],
+   food:[
+     {n:"馬祖淡菜", lat:26.1570, lng:119.9420},
+     {n:"老酒麵線", lat:26.1570, lng:119.9420},
+     {n:"繼光餅", lat:26.1570, lng:119.9420}]}
+];
+
+const lodgeMap = {}; LODGES.forEach(l=>lodgeMap[l.id]=l);
+
+// ---------- TODAY BAR ----------
+const today = new Date(); today.setHours(0,0,0,0);
+document.getElementById('todayBar').textContent =
+  `📅 今天日期：${fmt(today)}（訂房提醒之倒數天數皆以此為基準計算）`;
+
+function fmt(d){
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+}
+function addDays(d, n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+
+// ---------- MAP ----------
+let map = null, nearbyLayer = null;
+try{
+  map = L.map('map').setView([23.6, 120.9], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:19, attribution:'&copy; OpenStreetMap'
+  }).addTo(map);
+  nearbyLayer = L.layerGroup().addTo(map);
+}catch(e){
+  document.getElementById('map').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:20px;text-align:center;color:#6b5f52;font-size:0.9rem;">⚠️ 此瀏覽環境無法載入互動地圖。<br>景點、美食、節慶、訂房倒數功能都正常，請往下瀏覽；<br>導航請用各會館卡片的「Google 地圖導航」連結。</div>';
+  document.getElementById('mapHint').style.display='none';
+  document.getElementById('clearBtn').style.display='none';
+}
+
+function catIcon(catKey, big){
+  const c = CAT[catKey];
+  const size = big ? 32 : 26;
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${c.color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:${big?15:13}px;">${c.emoji}</div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size/2], popupAnchor:[0,-size/2]
+  });
+}
+
+let activeLodgeId = null;
+
+function clearNearby(){
+  if(!nearbyLayer) return;
+  nearbyLayer.clearLayers();
+  activeLodgeId = null;
+  document.getElementById('mapHint').textContent = '👉 點擊🏨會館圖釘查看周邊景點與美食';
+}
+
+function showNearby(lodge){
+  if(!map || !nearbyLayer) return;
+  nearbyLayer.clearLayers();
+  activeLodgeId = lodge.id;
+  const bounds = [[lodge.lat, lodge.lng]];
+
+  lodge.attractions.forEach(a=>{
+    const marker = L.marker([a.lat, a.lng], {icon: catIcon(a.tier === 'attraction' ? 'attraction' : a.tier)});
+    const tierLabel = a.tier === 'global' ? '🌏 國際知名景點' : a.tier === 'bucket' ? '⭐ 人生必去景點' : '🏞️ 必玩景點';
+    marker.bindPopup(`<div class="poi-popup-title">${a.n}</div>${tierLabel}<br>鄰近：${lodge.name}`);
+    marker.addTo(nearbyLayer);
+    bounds.push([a.lat, a.lng]);
+  });
+
+  lodge.food.forEach(f=>{
+    const marker = L.marker([f.lat, f.lng], {icon: catIcon('food')});
+    marker.bindPopup(`<div class="poi-popup-title">${f.n}</div>🍜 必吃美食<br>鄰近：${lodge.name}`);
+    marker.addTo(nearbyLayer);
+    bounds.push([f.lat, f.lng]);
+  });
+
+  const fests = FEST[lodge.id] || [];
+  fests.forEach(f=>{
+    if(f.lat == null) return;
+    const marker = L.marker([f.lat, f.lng], {icon: catIcon('festival')});
+    const monthsStr = f.months.map(m=>monthNames[m]).join('、');
+    marker.bindPopup(`<div class="poi-popup-title">🎉 ${f.name}</div>約在：${monthsStr}<br>${f.note}<br>鄰近：${lodge.name}`);
+    marker.addTo(nearbyLayer);
+    bounds.push([f.lat, f.lng]);
+  });
+
+  document.getElementById('mapHint').textContent = `📍 目前顯示：${lodge.name} 周邊景點、美食與節慶（共${lodge.attractions.length + lodge.food.length + fests.length}個地點）`;
+  map.fitBounds(bounds, {padding:[40,40], maxZoom:13});
+}
+
+if(map) LODGES.forEach(l=>{
+  const marker = L.marker([l.lat, l.lng], {icon: catIcon('lodge', true)});
+  marker.addTo(map);
+  marker.bindPopup(`
+    <b>${l.name}</b>${l.global?' 🌏震撼全球級景點':''}<br>
+    ${l.addr}<br>
+    電話：${l.phone}<br>
+    平日房價 NT$${l.priceWD}｜假日房價 NT$${l.priceHD}<br>
+    <a href="#region-${l.region}" onclick="selectTab('${l.region}')">查看所屬分區 →</a>
+  `);
+  marker.on('click', ()=>showNearby(l));
+});
+
+// legend: marker categories
+const legendEl = document.getElementById('legend');
+Object.entries(CAT).forEach(([k,c])=>{
+  legendEl.innerHTML += `<span><i class="ico" style="background:${c.color}">${c.emoji}</i>${c.label}</span>`;
+});
+
+// region color legend (for reference / tabs)
+const regionLegendEl = document.getElementById('regionLegend');
+Object.entries(REGIONS).forEach(([k,r])=>{
+  regionLegendEl.innerHTML += `<span><i class="dot" style="background:${r.color}"></i>${r.name}</span>`;
+});
+
+// ---------- TABS + REGION PANELS ----------
+const tabsEl = document.getElementById('tabs');
+const regionsEl = document.getElementById('regions');
+const monthNames = ['','1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+Object.entries(REGIONS).forEach(([key, region])=>{
+  const btn = document.createElement('button');
+  btn.className = 'tab-btn'; btn.textContent = region.name; btn.dataset.key = key;
+  btn.onclick = ()=>selectTab(key);
+  tabsEl.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'region-panel'; panel.id = `region-${key}`;
+  panel.innerHTML = `
+    <div class="region-head">
+      <h2>${region.name}</h2>
+      <p class="desc">${region.desc}</p>
+    </div>
+    <div id="lodges-${key}"></div>
+  `;
+  regionsEl.appendChild(panel);
+
+  const lodgesWrap = panel.querySelector(`#lodges-${key}`);
+  LODGES.filter(l=>l.region===key).forEach(lodge=>renderLodgeCard(lodgesWrap, lodge));
+});
+
+function selectTab(key){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.key===key));
+  document.querySelectorAll('.region-panel').forEach(t=>t.classList.toggle('active', t.id===`region-${key}`));
+  document.getElementById(`region-${key}`).scrollIntoView({behavior:'smooth', block:'start'});
+}
+selectTab('A');
+
+function renderLodgeCard(container, lodge){
+  const card = document.createElement('div');
+  card.className = 'stop';
+  card.innerHTML = `
+    <div class="stop-head">
+      <h3 onclick="focusOnMap('${lodge.id}')" title="點擊在地圖上顯示周邊景點與美食">📍 ${lodge.name}${lodge.global?'<span class="badge-global">🌏震撼全球</span>':''}</h3>
+      <span class="map-link" onclick="focusOnMap('${lodge.id}')">在地圖上查看周邊 →</span>
+    </div>
+    <div class="meta-line">${lodge.addr}｜📞 ${lodge.phone}｜<a href="https://www.google.com/maps?q=${lodge.lat},${lodge.lng}" target="_blank">Google 地圖導航</a></div>
+    <div class="price-line">
+      <span class="price-chip">平日房價 <b>NT$${lodge.priceWD}</b></span>
+      <span class="price-chip holiday">假日房價 <b>NT$${lodge.priceHD}</b></span>
+    </div>
+    <div id="fest-${lodge.id}"></div>
+    <div class="date-row">
+      <label>入住日：</label>
+      <input type="date" id="checkin-${lodge.id}">
+      <label>住宿晚數：</label>
+      <input type="number" id="nights-${lodge.id}" min="1" max="14" value="${lodge.nights}">
+      <span class="summary-pill" id="summary-${lodge.id}"></span>
+    </div>
+    <div class="cols">
+      <div class="col-block">
+        <h4>必玩景點</h4>
+        <ul>${lodge.attractions.map(a=>`<li class="${a.tier!=='attraction'?'tier-'+a.tier:''}">${a.tier==='global'?'🌏 ':a.tier==='bucket'?'⭐ ':''}${a.n}</li>`).join('')}</ul>
+      </div>
+      <div class="col-block">
+        <h4>必吃美食</h4>
+        <ul>${lodge.food.map(f=>`<li>${f.n}</li>`).join('')}</ul>
+      </div>
+    </div>
+    <div id="booking-${lodge.id}"></div>
+  `;
+  container.appendChild(card);
+
+  document.getElementById(`checkin-${lodge.id}`).addEventListener('change', ()=>renderLodgeDynamic(lodge));
+  document.getElementById(`nights-${lodge.id}`).addEventListener('change', ()=>renderLodgeDynamic(lodge));
+  renderLodgeDynamic(lodge);
+}
+
+function focusOnMap(lodgeId){
+  if(!map) return;
+  const lodge = lodgeMap[lodgeId];
+  showNearby(lodge);
+  document.getElementById('mapWrap').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function renderLodgeDynamic(lodge){
+  const dateVal = document.getElementById(`checkin-${lodge.id}`).value;
+  const nights = parseInt(document.getElementById(`nights-${lodge.id}`).value, 10) || 1;
+  const checkIn = dateVal ? new Date(dateVal+'T00:00:00') : null;
+  const checkOut = checkIn ? addDays(checkIn, nights) : null;
+  const bookingDeadline = checkIn ? addDays(checkIn, -39) : null;
+  const checkInMonth = checkIn ? checkIn.getMonth()+1 : null;
+
+  // ---- Festival banner (always visible; highlighted red if matched) ----
+  const fests = FEST[lodge.id] || [];
+  const festWrap = document.getElementById(`fest-${lodge.id}`);
+  if(fests.length === 0){
+    festWrap.innerHTML = '';
+  } else {
+    const anyHit = checkInMonth && fests.some(f=>f.months.includes(checkInMonth));
+    const items = fests.map(f=>{
+      const hit = checkInMonth && f.months.includes(checkInMonth);
+      const monthsStr = f.months.map(m=>monthNames[m]).join('、');
+      return `<div class="fest-item ${hit?'matched':''}"><b>${f.name}</b>（約${monthsStr}）— ${f.note}</div>`;
+    }).join('');
+    festWrap.innerHTML = `
+      <div class="fest-banner ${anyHit?'hit':''}">
+        <div class="fest-title">${anyHit?'🚨 你的行程將遇到重大節慶！':'🎉 重要節慶提醒'}</div>
+        ${items}
+      </div>`;
+  }
+
+  // ---- Booking countdown ----
+  const bookingWrap = document.getElementById(`booking-${lodge.id}`);
+  if(bookingDeadline){
+    const diffDays = Math.round((bookingDeadline - today)/86400000);
+    let cls='st-ok', label='';
+    if(diffDays < 0){ cls='st-over'; label=`⚠️ 已超過建議訂房日 ${Math.abs(diffDays)} 天，請儘速致電確認空房`; }
+    else if(diffDays === 0){ cls='st-urgent'; label='🔴 就是今天！請立即致電訂房'; }
+    else if(diffDays <= 7){ cls='st-urgent'; label=`🔴 緊急：還有 ${diffDays} 天到建議訂房日`; }
+    else if(diffDays <= 30){ cls='st-soon'; label=`🟠 還有 ${diffDays} 天到建議訂房日，請提早準備`; }
+    else { cls='st-ok'; label=`🟢 還有 ${diffDays} 天到建議訂房日`; }
+    bookingWrap.innerHTML = `<div class="booking-box ${cls}">
+      <b>入住：${fmt(checkIn)} → 退房：${fmt(checkOut)}（${nights}晚）</b>
+      <span>建議訂房日：${fmt(bookingDeadline)}（入住日前39天）</span>
+      <span>${label}</span>
+      <span>📞 訂房電話：${lodge.phone}</span>
+    </div>`;
+  } else {
+    bookingWrap.innerHTML = `<div class="booking-box st-none">請選擇入住日，系統將自動算出退房日與建議訂房日（入住日前39天，配合會館提前40天預訂制）。📞 訂房電話：${lodge.phone}</div>`;
+  }
+
+  document.getElementById(`summary-${lodge.id}`).textContent = checkOut ? `退房：${fmt(checkOut)}` : '';
+}
+
+// ---------- FESTIVAL REFERENCE ----------
+const festRefEl = document.getElementById('festRef');
+const seenFest = new Set();
+Object.entries(FEST).forEach(([lodgeId, list])=>{
+  list.forEach(f=>{
+    if(seenFest.has(f.name)) return; seenFest.add(f.name);
+    const monthsStr = f.months.map(m=>monthNames[m]).join('、');
+    festRefEl.innerHTML += `<div class="fest-card"><h4>🎉 ${f.name}</h4><p>約在：<b>${monthsStr}</b><br>${f.note}<br>地區：${lodgeMap[lodgeId]?lodgeMap[lodgeId].name:''}</p></div>`;
+  });
+});
+
+// ---------- CONTACT TABLE ----------
+const contactBody = document.getElementById('contactBody');
+LODGES.forEach(l=>{
+  contactBody.innerHTML += `<tr><td>${l.name}</td><td>${l.addr}</td><td>${l.phone}</td><td>${l.priceWD}</td><td>${l.priceHD}</td></tr>`;
+});
+</script>
+</body>
+</html>
